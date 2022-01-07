@@ -9,6 +9,7 @@ library("dplyr")
 library("ggplot2")
 library("phyloseq")
 library("vegan")
+library("RColorBrewer")
 
 #storm <- read.csv("~/Kelley_Lab/Stormwater_data.csv")
 #head(storm)
@@ -52,8 +53,8 @@ hist(simpson)
 rcnt <- nrow(p_counts)
 ccnt <- ncol(p_counts)
 
-df <- data.frame(matrix(nrow=rcnt, ncol = ccnt))
-colnames(df) <- colnames(p_counts)
+r_abund <- data.frame(matrix(nrow=rcnt, ncol = ccnt))
+colnames(r_abund) <- colnames(p_counts)
 
 for(i in 1:13) {
   r_abund[i] <- round(p_counts[i]/totals[i], 4)
