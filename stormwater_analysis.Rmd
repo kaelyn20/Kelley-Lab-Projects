@@ -1,0 +1,83 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+
+library("dplyr")
+library("ggplot2")
+library("phyloseq")
+library("vegan")
+
+#storm <- read.csv("~/Kelley_Lab/Stormwater_data.csv")
+#head(storm)
+
+
+```
+
+```{r}
+storm_mod <- filter(storm, domain == "Bacteria")
+head(storm_mod)
+```
+
+
+```{r}
+#sort by phylum and sum values for repeating phylums
+by_phylum <- storm_mod[, c(3, 9:21)]
+
+
+#evenness and richness
+hist(richness)
+
+#get total counts for all samples
+totals <-colSums(p_counts)
+
+#shannon diversity
+shannon <- diversity(tr_pcounts)
+hist(shannon)
+
+#Pielou's evenness
+evenness = shannon/log(totals)
+df <- data.frame('Names' = names(evenness), "Evenness" = evenness)
+ggplot(df, mapping = aes(x= Names, y = Evenness)) + geom_bar(stat = "identity")
+
+#simpson diversity
+simpson <- diversity(p_counts)
+hist(simpson)
+```
+
+```{r}
+#calculate relative abundances and plot them
+rcnt <- nrow(p_counts)
+ccnt <- ncol(p_counts)
+
+df <- data.frame(matrix(nrow=rcnt, ncol = ccnt))
+colnames(df) <- colnames(p_counts)
+
+for(i in 1:13) {
+  r_abund[i] <- round(p_counts[i]/totals[i], 4)
+}
+rownames(r_abund) <- rownames(p_counts)
+
+above1 <- r_abund %>% filter_all(any_vars(. > .01))
+above5 <- r_abund %>% filter_all(any_vars(. > .05))
+
+#Phyla with more than 1% of relative abundance
+barplot(as.matrix(above1), col = brewer.pal(8, "Accent"), legend.text = rownames(above1), xlim = c(0, 20), args.legend = list(x = "topright", inset = c(-.12, 0)) )
+
+#Phyla with more than 5% of relative abundance
+barplot(as.matrix(above5), col = brewer.pal(6, "Accent"), legend.text = rownames(above5), xlim = c(0, 20), args.legend = list(x = "topright", inset = c(-.12, 0)) ) 
+```
+
+
+``` {r}
+#rarefaction
+#raremin <- m in(totals) #finds smallest value of totals
+#rarecurve(tr_pcounts, col = "blue")
+
+#NMDS
+
+```
+#tr_pcounts <- t(p_counts[2:14])
+#cnames <-p_counts[1]
