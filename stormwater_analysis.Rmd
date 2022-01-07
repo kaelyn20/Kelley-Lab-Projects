@@ -9,7 +9,6 @@ library("dplyr")
 library("ggplot2")
 library("phyloseq")
 library("vegan")
-library("RColorBrewer")
 
 #storm <- read.csv("~/Kelley_Lab/Stormwater_data.csv")
 #head(storm)
@@ -28,15 +27,24 @@ head(storm_mod)
 by_phylum <- storm_mod[, c(3, 9:21)]
 
 
-#evenness and richness
-hist(richness)
+#richness
+richness = data.frame(matrix(nrow = 13, ncol = 2))
+
+for (i in 1:13) { 
+  richness[i, 2] <- length(which(p_counts[i]>0))
+  richness[i, 1] <- colnames(p_counts[i]) 
+}
+colnames(richness) <- c("Sites", "Richness")
+ggplot(richness, mapping = aes(x= Sites, y = Richness)) + geom_bar(stat = "identity")
 
 #get total counts for all samples
 totals <-colSums(p_counts)
 
 #shannon diversity
 shannon <- diversity(tr_pcounts)
-hist(shannon)
+shannondf <- data.frame('Names' = names(shannon), "ShannonDiversity" = shannon)
+ggplot(shannondf, mapping = aes(x= Names, y = ShannonDiversity)) + geom_bar(stat = "identity")
+
 
 #Pielou's evenness
 evenness = shannon/log(totals)
@@ -60,6 +68,7 @@ for(i in 1:13) {
   r_abund[i] <- round(p_counts[i]/totals[i], 4)
 }
 rownames(r_abund) <- rownames(p_counts)
+
 
 above1 <- r_abund %>% filter_all(any_vars(. > .01))
 above5 <- r_abund %>% filter_all(any_vars(. > .05))
