@@ -5,27 +5,36 @@ output: html_notebook
 
 ```{r}
 
+#Load libraries
+
 library("dplyr")
 library("ggplot2")
-library("phyloseq")
 library("vegan")
-
-#storm <- read.csv("~/Kelley_Lab/Stormwater_data.csv")
-#head(storm)
-
+library("RColorBrewer")
+library("zCompositions")
+#library(mixOmics)
+library("lattice")
+library("ggpubr")
 
 ```
 
 ```{r}
+
+#read in data and store in df, filter to only include only bacteria
+storm <- read.csv("~/Kelley_Lab/Stormwater_data.csv")
 storm_mod <- filter(storm, domain == "Bacteria")
-head(storm_mod)
+
 ```
 
 
 ```{r}
 #sort by phylum and sum values for repeating phylums
 by_phylum <- storm_mod[, c(3, 9:21)]
-
+p_counts <- by_phylum %>% group_by(phylum) %>% summarise_all(sum)
+phylums <- p_counts$phylum
+phyclums[135] <- "Undetermined"
+p_counts <- p_counts[, 2:14]
+rownames(p_counts) <- phylums
 
 #richness
 richness = data.frame(matrix(nrow = 13, ncol = 2))
@@ -81,13 +90,22 @@ barplot(as.matrix(above5), col = brewer.pal(6, "Accent"), legend.text = rownames
 ```
 
 
+```{r}
+#Bray Curtis
+bray <- vegdist(p_counts, "bray")
+
+#CLR transform
+bac_z <- cmultRepl(as.matrix(p_counts), output = 'p-counts')
+clr <- function(x) sweep(log(x), 1, rowMeans(log(x)), "-")
+bac_tx <- data.frame(t(clr(t(bac_z))))
+```
+
 ``` {r}
 #rarefaction
-#raremin <- m in(totals) #finds smallest value of totals
-#rarecurve(tr_pcounts, col = "blue")
-
+raremin <- min(totals) #finds smallest value of totals
+tr_pcounts <- t(p_counts)
+rarefy(tr_pcounts, raremin)
+rarecurve(tr_pcounts, step = 1000, sample = raremin, col = "blue")
 #NMDS
 
 ```
-#tr_pcounts <- t(p_counts[2:14])
-#cnames <-p_counts[1]
