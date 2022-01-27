@@ -1,9 +1,15 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Stormwater Data Analysis"
+author: "Kaelyn Nannini"
+date: "1/26/2022"
+output: html_document
 ---
 
-```{r}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Load libraries}
 
 #Load libraries
 
@@ -15,7 +21,7 @@ library("zCompositions")
 #library(mixOmics)
 library("lattice")
 library("ggpubr")
-
+library("tidyr")
 ```
 
 ```{r}
@@ -30,10 +36,10 @@ storm_mod <- filter(storm, domain == "Bacteria")
 ```{r}
 #sort by phylum and sum values for repeating phylums
 by_phylum <- storm_mod[, c(3, 9:21)]
-p_counts <- by_phylum %>% group_by(phylum) %>% summarise_all(sum)
-phylums <- p_counts$phylum
-phyclums[135] <- "Undetermined"
-p_counts <- p_counts[, 2:14]
+pcnts <- by_phylum %>% group_by(phylum) %>% summarise_all(sum)
+phylums <- pcnts$phylum
+phylums[135] <- "Undetermined"
+p_counts <- pcnts[, 2:14]
 rownames(p_counts) <- phylums
 
 #richness
@@ -50,7 +56,7 @@ ggplot(richness, mapping = aes(x= Sites, y = Richness)) + geom_bar(stat = "ident
 totals <-colSums(p_counts)
 
 #shannon diversity
-shannon <- diversity(tr_pcounts)
+shannon <- diversity(t(p_counts))
 shannondf <- data.frame('Names' = names(shannon), "ShannonDiversity" = shannon)
 ggplot(shannondf, mapping = aes(x= Names, y = ShannonDiversity)) + geom_bar(stat = "identity")
 
@@ -67,45 +73,60 @@ hist(simpson)
 
 ```{r}
 #calculate relative abundances and plot them
-rcnt <- nrow(p_counts)
-ccnt <- ncol(p_counts)
+rcnt <- nrow(pcnts)
+ccnt <- ncol(pcnts)
 
 r_abund <- data.frame(matrix(nrow=rcnt, ncol = ccnt))
-colnames(r_abund) <- colnames(p_counts)
+colnames(r_abund) <- colnames(pcnts)
+r_abund[1] <- pcnts[1]
 
-for(i in 1:13) {
-  r_abund[i] <- round(p_counts[i]/totals[i], 4)
+for(i in 2:14) {
+  r_abund[i] <- round(pcnts[i]/totals[i-1], 4)
 }
-rownames(r_abund) <- rownames(p_counts)
 
+above1 <- r_abund %>% filter_at(2:14, (any_vars(. > .01)))
+above5 <- r_abund %>% filter_at(2:14, (any_vars(. > .05)))
 
-above1 <- r_abund %>% filter_all(any_vars(. > .01))
-above5 <- r_abund %>% filter_all(any_vars(. > .05))
+tidy_above1 <- above1 %>%
+  pivot_longer(EB29CKDL2:EB41CKDL2, names_to = "Sites", values_to = "Abundances")
+tidy_above5 <- above5 %>%   
+  pivot_longer(EB29CKDL2:EB41CKDL2, names_to = "Sites", values_to = "Abundances")
 
-#Phyla with more than 1% of relative abundance
-barplot(as.matrix(above1), col = brewer.pal(8, "Accent"), legend.text = rownames(above1), xlim = c(0, 20), args.legend = list(x = "topright", inset = c(-.12, 0)) )
+ggplot(tidy_above1, aes(x=Sites, y=Abundances, fill=phylum)) +
+  geom_bar(stat="identity")
 
-#Phyla with more than 5% of relative abundance
-barplot(as.matrix(above5), col = brewer.pal(6, "Accent"), legend.text = rownames(above5), xlim = c(0, 20), args.legend = list(x = "topright", inset = c(-.12, 0)) ) 
+ggplot(tidy_above5, aes(x=Sites, y=Abundances, fill=phylum)) +
+  geom_bar(stat="identity") + 
+  scale_x_discrete(labels = c("EB29", "EB30", "EB31", "EB32", "EB33", "EB34", "EB35", "EB36", "EB37", "EB38", "EB39", "EB40", "EB41"))
+
 ```
 
 
 ```{r}
-#Bray Curtis
-bray <- vegdist(p_counts, "bray")
 
 #CLR transform
 bac_z <- cmultRepl(as.matrix(p_counts), output = 'p-counts')
 clr <- function(x) sweep(log(x), 1, rowMeans(log(x)), "-")
 bac_tx <- data.frame(t(clr(t(bac_z))))
+
+#NMDS
+bact_m <- as.matrix(t(bac_tx))
+Bact_nmds = metaMDS(bact_m, distance = "euclidean")
+bact_scores = as.data.frame(scores(Bact_nmds))
+B_T <- ggplot(data = bact_scores) +
+  geom_point(aes(x = NMDS1, y = NMDS2)) + 
+  theme_classic()
+B_T
 ```
 
 ``` {r}
 #rarefaction
 raremin <- min(totals) #finds smallest value of totals
 tr_pcounts <- t(p_counts)
-rarefy(tr_pcounts, raremin)
+srare <- rarefy(tr_pcounts, raremin)
 rarecurve(tr_pcounts, step = 1000, sample = raremin, col = "blue")
-#NMDS
+
+#Bray Curtis
+bray <- vegdist(srare, "bray")
 
 ```
