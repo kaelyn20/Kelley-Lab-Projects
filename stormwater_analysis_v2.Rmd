@@ -1,0 +1,139 @@
+---
+title: "Stormwater_analysis_v2"
+author: "Kaelyn Nannini"
+date: "1/27/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Load libraries}
+
+#Load libraries
+
+library("dplyr")
+library("ggplot2")
+library("vegan")
+library("RColorBrewer")
+library("zCompositions")
+library("lattice")
+library("ggpubr")
+library("tidyr") #needs to tidy data
+```
+
+```{r Load data}
+
+#read in data and store in df, filter to only include only bacteria
+storm <- read.csv("~/Kelley_Lab/Stormwater_data.csv")
+storm_mod <- filter(storm, domain == "Bacteria")
+
+#sort by phylum and sum values for repeating phylums
+by_phylum <- storm_mod[, c(3, 13:20)]
+pcnts <- by_phylum %>% group_by(phylum) %>% summarise_all(sum)
+phylums <- pcnts$phylum
+phylums[135] <- "Undetermined"
+p_counts <- pcnts[, 2:9]
+rownames(p_counts) <- phylums
+```
+
+
+```{r Calculate basic alpha diversity metrics}
+#richness
+richness = data.frame(matrix(nrow = 8, ncol = 2))
+
+#make a dataframe with the first row in the column has the site name and the second column has the number of species
+for (i in 1:8) { 
+  richness[i, 2] <- length(which(p_counts[i]>0)) #counts number of times there's a counts greater than 0
+  richness[i, 1] <- colnames(p_counts[i]) 
+}
+colnames(richness) <- c("Sites", "Richness")
+ggplot(richness, mapping = aes(x= Sites, y = Richness)) + geom_bar(stat = "identity")
+
+#get total counts for all samples
+totals <-colSums(p_counts)
+
+#shannon diversity
+shannon <- diversity(t(p_counts))
+shannondf <- data.frame('Names' = names(shannon), "ShannonDiversity" = shannon) #create dataframe from named number
+ggplot(shannondf, mapping = aes(x= Names, y = ShannonDiversity)) + geom_bar(stat = "identity")
+
+
+#Pielou's evenness
+evenness = shannon/log(totals)
+df <- data.frame('Names' = names(evenness), "Evenness" = evenness)
+ggplot(df, mapping = aes(x= Names, y = Evenness)) + geom_bar(stat = "identity")
+
+#simpson diversity
+#simpson <- diversity(p_counts)
+#hist(simpson)
+```
+
+```{r Relative Abundances and Plots}
+#calculate relative abundances and plot them
+rcnt <- nrow(pcnts)
+ccnt <- ncol(pcnts)
+
+r_abund <- data.frame(matrix(nrow=rcnt, ncol = ccnt)) #create dataframe with same number and rows and columns as pcnts
+colnames(r_abund) <- colnames(pcnts) #rename the columns as the same as pcnts
+r_abund[1] <- pcnts[1]
+
+for(i in 2:9) {
+  r_abund[i] <- round(pcnts[i]/totals[i-1], 4) #divide count of phylum of given site by the total number of features for that site
+}
+
+#filter for relative abundances greater than 1% and 5%
+above1 <- r_abund %>% filter_at(2:9, (any_vars(. > .01))) 
+above5 <- r_abund %>% filter_at(2:9, (any_vars(. > .05)))
+
+#create tidy plots of relative abundances for graphing purposes
+tidy_above1 <- above1 %>%
+  pivot_longer(EB33CKDL2:EB40CKDL2, names_to = "Sites", values_to = "Abundances")
+tidy_above5 <- above5 %>%   
+  pivot_longer(EB33CKDL2:EB40CKDL2, names_to = "Sites", values_to = "Abundances")
+
+ggplot(tidy_above1, aes(x=Sites, y=Abundances, fill=phylum)) +
+  geom_bar(stat="identity")
+
+ggplot(tidy_above5, aes(x=Sites, y=Abundances, fill=phylum)) +
+  geom_bar(stat="identity") + 
+  scale_x_discrete(labels = c("EB33", "EB34", "EB35", "EB36", "EB37", "EB38", "EB39", "EB40"))
+
+```
+
+
+```{r CLR transform and NMDS}
+
+#CLR transform
+bac_z <- cmultRepl(as.matrix(p_counts), output = 'p-counts') #create z scores
+clr <- function(x) sweep(log(x), 1, rowMeans(log(x)), "-")
+bac_tx <- data.frame(t(clr(t(bac_z)))) #clr transform data
+
+#NMDS
+bact_m <- as.matrix(t(bac_tx))
+Bact_nmds = metaMDS(bact_m, distance = "euclidean")
+bact_scores = as.data.frame(scores(Bact_nmds))
+B_T <- ggplot(data = bact_scores) +
+  geom_point(aes(x = NMDS1, y = NMDS2)) + 
+  theme_classic()
+B_T 
+```
+
+``` {r}
+#rarefaction
+raremin <- min(totals) #finds smallest value of totals
+tr_pcounts <- t(p_counts)
+srare <- rarefy(tr_pcounts, raremin) #rarefy data using smallest total
+rarecurve(tr_pcounts, step = 1000, sample = raremin, col = "blue")
+
+#Bray Curtis
+#bray <- vegdist(srare, "bray")
+
+```
+
+```{r Test plot}
+
+
+```
+
