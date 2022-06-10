@@ -1,0 +1,10 @@
+OTU_ID	EB29	EB30	EB31	EB32	EB33	EB34	EB35	EB36	EB37	EB38	EB39	EB40	kingdom	phylum	class	order	family	genus	species
+116083	1212.0	786.0	2049.0	2031.0	2457.0	1996.0	1542.0	3406.0	3155.0	729.0	1968.0	2319.0	Bacteria	 Proteobacteria	 Alphaproteobacteria	 Unidentified	 Unidentified	 Unidentified	 Unidentified
+152464	48.0	28.0	47.0	49.0	51.0	42.0	41.0	74.0	68.0	16.0	25.0	44.0	Bacteria	 Proteobacteria	 Alphaproteobacteria	 Pelagibacterales	 Unidentified	 Unidentified	 Unidentified
+152465	847.0	462.0	1053.0	951.0	976.0	1152.0	1069.0	1636.0	2032.0	405.0	1142.0	1301.0	Bacteria	 Proteobacteria	 Alphaproteobacteria	 Pelagibacterales	 Pelagibacteraceae	 Unidentified	 Unidentified
+152466	159585.0	94005.0	177855.0	203955.0	220120.0	225882.0	178938.0	292399.0	328924.0	77491.0	199975.0	213227.0	Bacteria	 Proteobacteria	 Alphaproteobacteria	 Pelagibacterales	 Pelagibacteraceae	 Pelagibacter	 Unidentified
+217692	17621.0	9586.0	19759.0	18388.0	18347.0	23552.0	21162.0	30456.0	38463.0	8029.0	20923.0	21729.0	Bacteria	 Proteobacteria	 Alphaproteobacteria	 Pelagibacterales	 Pelagibacteraceae	 Pelagibacter_A	 Unidentified
+253494	688.0	370.0	911.0	743.0	791.0	862.0	978.0	1435.0	1457.0	324.0	907.0	914.0	Bacteria	 Proteobacteria	 Alphaproteobacteria	 Pelagibacterales	 Pelagibacteraceae	 GCA-2689925	 Unidentified
+211094	512.0	373.0	876.0	655.0	809.0	848.0	925.0	1396.0	1569.0	257.0	875.0	938.0	Bacteria	 Proteobacteria	 Alphaproteobacteria	 Pelagibacterales	 Pelagibacteraceae	 GCA-2704625	 Unidentified
+225219	439.0	184.0	503.0	529.0	1275.0	548.0	466.0	676.0	712.0	125.0	451.0	426.0	Bacteria	 Proteobacteria	 Alphaproteobacteria	 Pelagibacterales	 Pelagibacteraceae	 HIMB114	 Unidentified
+233378	287.0	186.0	312.0	300.0	332.0	480.0	454.0	687.0	946.0	141.0	441.0	409.0	Bacteria	 Proteobacteria	 Alphaproteobacteria	 Pelagibacterales	 Pelagibacteraceae	 MED727	 Unidentified
