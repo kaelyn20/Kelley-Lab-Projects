@@ -20,6 +20,7 @@ library("RColorBrewer")
 library("zCompositions")
 library("lattice")
 library("ggpubr")
+library("fossil")
 library("tidyr") #needs to tidy data
 ```
 
@@ -45,9 +46,18 @@ rmeta <- swmeta %>%
   dplyr::select(Sample, Rain)
 ```
 
+```{r Rarify data}
+#Rarefy data so each adds to the same amount
+totals <-colSums(g_counts) #get totals for each sample
+rare_gcnts <- rarefy(t(gcnts[2:13]), min(totals))
+
+richdf <- data.frame('Sample' = as.factor(names(rare_gcnts)), 'Richness' = rare_gcnts)
+meta_rich <- inner_join(richdf, rmeta)
+```
+
 
 ```{r Calculate genera richness}
-#richness
+#otu count
 richness = data.frame(matrix(nrow = 12, ncol = 2))
 
 #make a dataframe with the first row in the column has the site name and the second column has the number of species
@@ -59,13 +69,21 @@ colnames(richness) <- c("Sample", "Richness")
 meta_rich <- inner_join(richness, rmeta)
 
 
-ggplot(meta_rich, mapping = aes(x= Sample, y = Richness, fill = Rain)) + 
-  geom_bar(stat = "identity") + 
+#ggplot(meta_rich, mapping = aes(x= Sample, y = Richness, fill = Rain)) + 
+#  geom_bar(stat = "identity") + 
+#  theme_classic()
+
+#calculate chao1 richness
+
+swrich <- data.frame(estimateR(t(g_counts)))
+
+swchao <- data.frame(t(swrich[2, ]))
+swchao$Sample <- rownames(swchao)
+chao <- inner_join(swchao, rmeta)
+  
+ggplot(chao, aes(x= Sample, y = S.chao1, fill = Rain)) +
+  geom_bar(stat = "identity") +
   theme_classic()
-
-
-#get total counts for all samples
-totals <-colSums(g_counts)
 ```
 
 ```{r Calculate shannon diversity}
@@ -127,14 +145,16 @@ ggplot(tidy_above2, aes(x=Sites, y=Abundances, fill=genus)) +
 ```{r CLR transform and NMDS}
 
 #CLR transform
-bac_z <- cmultRepl(as.matrix(g_counts), output = 'p-counts') #create z scores
+#bac_z <- cmultRepl(as.matrix(g_counts), output = 'p-counts') #create z scores
+g_counts[g_counts == 0] <- .01
 clr <- function(x) sweep(log(x), 1, rowMeans(log(x)), "-")
-bac_tx <- data.frame(t(clr(t(bac_z)))) #clr transform data
+bac_tx <- t(clr(t(g_counts))) #clr transform data
 
 #NMDS
 #bact_m <- as.matrix(t(bac_tx))
 Bact_nmds = metaMDS(t(bac_tx), distance = "euclidean")
 bact_scores = as.data.frame(scores(Bact_nmds))
+
 ```
 ```{r Plot NMDS}
 #Filter Metadata
@@ -146,11 +166,30 @@ bact_scores2 <- inner_join(bact_scores, meta2)
 
 #make plot
 B_T <- ggplot(data = bact_scores2, aes(x = NMDS1, y = NMDS2, color = Rain)) +
-  geom_point() + 
-  theme_classic()
+  geom_point(size = 2) + 
+  theme_classic() 
 B_T 
 ```
 
 ```{r Ordiplot of NMDS}
 ordiplot(Bact_nmds, display = "sites")
+```
+
+## Perform Statistical Comparisons 
+```{r Peform PERMANOVA}
+#get  distances
+clrdat <- data.frame(t(bac_tx))
+swdist <- vegdist(clrdat, method = "euclidean")
+
+#do 10000 permutations
+swperm <- adonis2(swdist~Rain, data = rmeta, permutations = 9999, method = "euclidean")
+
+swperm
+
+```
+
+```{r Perform ANOSIM}
+swano <- anosim(clrdat, rmeta$Rain, permutations = 9999, distance = "euclidean")
+
+swano
 ```
