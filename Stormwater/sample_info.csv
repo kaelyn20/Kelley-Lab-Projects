@@ -1,0 +1,13 @@
+Sample,Day,Lab Member(s),Date,Time,Weather conditions during sampling,Rainfall,Rain,"Day Temp (High/Low) (localconditions.com, Leucadia and San Marcos)",Comments
+EB29,1,Elinne,11/19/2019,10:00 AM,Sunny,0.03 in.,N,High: 77ºf @9:55 AM Low: 60.08ºf @3:53 AM,No rainfall recorded previous 30 days at least
+EB30,2,Dennis/Uriel?,11/20/2019,11:45 AM,Storm,0.474 in.,Y,High: 62.6ºf @10:50 AM Low: 51.8ºf @12:45 PM,Murky water becuase of storm. Hard to pass all 240 ml through 
+EB31,3,Dennis/Uriel?,11/21/2019,2:40 PM,Sunny Slight Overcast,0.043 in.,Y,High: 64.4ºf @12:05 PM Low: 53.6ºf @2:00 AM,Clearer water All 240 ml passed through
+EB32,4,Anahita,11/22/2019,4:15 PM,Cloudy,0 in.,T,High: 66.2ºf @1:00 PM Low: 51.08ºf @5:53 AM,240 mL sea water were filtered into two seprate filters.
+EB33,6,Matt,11/24/2019,2:00 PM,Sunny,0 in.,T,High: 69.98ºf @11:53 AM Low: 51.8ºf @5:45 AM,
+EB34,8,"Dennis, Uriel, Christian",11/26/2019,1:05 PM,Sunny,0 in.,N,High: 66.2ºf @10:40 AM Low: 51.8ºf @5:00 AM,Clear water all 240 ml passed through 
+EB35,9,Matt,11/27/2019,1:30 PM,Raining for ~1hr,0.491 in.,N,High: 62.6ºf @10:45 AM Low: 48.2ºf @9:55 PM,Lost 1 filter due to wind
+EB36,10,Elinne,11/28/2019,10:30 AM,Heavy Storm,1.534 in.,Y,High: 57.92ºf @8:53 AM Low: 48.2ºf @3:05 PM,180 ml per filter instead of 240 ml - much particulates
+EB37,11,Anahita,11/29/2019,12:45 PM,Sunny,0.205 in.,Y,High: 57.2ºf @12:10 PM Low: 46.04ºf @5:53 AM,240 mL were filtered through two seprate filters. 
+EB38,12,Elinne,11/30/2019,12:30 PM,Sunny,0.01 in.,T,High: 60.98ºf @12:53 PM Low: 46.04ºf @5:53 AM,180 ml on the 2nd filter bc of particulates
+EB39,13,Elinne,12/1/2019,11:00 AM,Sunny,0 in.,T,High: 62.96ºf @10:53 AM Low: 48.2ºf @6:40 AM,Clearer water. All 240ml passed through fine
+EB40,14,Dennis,12/2/2019,12:45 PM,Sunny,0 in.,N,High: 68ºf @11:10 AM Low: 48.2ºf @4:45 AM,High Tide! 240 ml passed through each filter 
