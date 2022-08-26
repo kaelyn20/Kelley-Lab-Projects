@@ -1,0 +1,184 @@
+---
+title: "Stormw Water Analysis V5 - Kracken"
+author: "Kaelyn Nannini"
+date: "1/27/2022"
+output: html_document
+---
+
+# Stormwater Analysis  
+This version of the stormwater analysis file does the analysis at the family level.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Load libraries}
+
+#Load libraries
+
+library("dplyr")
+library("ggplot2")
+library("vegan")
+library("RColorBrewer")
+library("zCompositions")
+library("lattice")
+library("ggpubr")
+library("tidyr") #needs to tidy data
+```
+
+```{r Load data}
+
+#read in data and store in df, filter to only include only bacteria
+storm <- read.table("clean_sw_kracken.txt", header = T, stringsAsFactors = T)
+swmeta <- read.csv("updated_sample_info.csv", stringsAsFactors = T)
+#filter data to only include Bacterial phyla counts
+fcnts <- storm %>%
+  filter(kingdom == "Bacteria") %>%
+  dplyr::select(2:13, 18) %>%
+  group_by(family) %>%
+  summarise_all(sum)
+
+#Create second dataframe with phylums as rownames
+fams <- fcnts$family
+f_counts <- fcnts[, 2:13]
+rownames(f_counts) <- fams
+
+#extra rain metadata
+rmeta <- swmeta %>%
+  dplyr::select(Sample, Rain)
+```
+## Alpha Diversity 
+```{r Rarify data}
+#Rarefy data so each adds to the same amount
+totals <-colSums(f_counts) #get totals for each sample
+rare_fcnts <- rarefy(t(fcnts[2:13]), min(totals))
+
+richdf <- data.frame('Sample' = as.factor(names(rare_fcnts)), 'Richness' = rare_fcnts)
+meta_rich <- inner_join(richdf, rmeta)
+```
+
+
+```{r Calculate genera richness}
+#richness
+richness = data.frame(matrix(nrow = 12, ncol = 2))
+
+#make a dataframe with the first row in the column has the site name and the second column has the number of species
+for (i in 1:12) { 
+  richness[i, 2] <- length(which(f_counts[i]>0)) #counts number of times there's a counts greater than 0
+  richness[i, 1] <- colnames(f_counts[i]) 
+}
+colnames(richness) <- c("Sample", "Richness")
+meta_rich <- inner_join(richness, rmeta)
+
+
+ggplot(meta_rich, mapping = aes(x= Sample, y = Richness, fill = Rain)) + 
+  geom_bar(stat = "identity") + 
+  theme_classic()
+
+
+
+```
+
+```{r Calculate shannon diversity}
+#shannon diversity
+shannon <- diversity(t(f_counts))
+shannondf <- data.frame('Sample' = as.factor(names(shannon)), "ShannonDiversity" = shannon) #create dataframe from named number
+shannon_meta <- inner_join(shannondf, rmeta)
+ggplot(shannon_meta, mapping = aes(x= Sample, y = ShannonDiversity, fill = Rain)) + geom_bar(stat = "identity") + theme_classic()
+```
+
+``` {r calculate evenness}
+
+#Pielou's evenness
+evenness = shannon/log(richness[2])
+df <- data.frame(names(shannon), evenness[1])
+colnames(df) <- c("Sample", "Evenness")
+even_meta <-inner_join(df, rmeta)
+ggplot(even_meta, mapping = aes(x= Sample, y = Evenness, fill = Rain)) + 
+  geom_bar(stat = "identity") +
+  theme_classic()
+
+```
+
+```{r Relative Abundances}
+#calculate relative abundances and plot them
+rcnt <- nrow(fcnts)
+ccnt <- ncol(fcnts)
+
+r_abund <- data.frame(matrix(nrow=rcnt, ncol = ccnt)) #create dataframe with same number and rows and columns as pcnts
+colnames(r_abund) <- colnames(fcnts) #rename the columns as the same as gcnts
+r_abund[1] <- fcnts[1]
+
+for(i in 2:13) {
+  r_abund[i] <- round(fcnts[i]/totals[i-1], 4) #divide count of phylum of given site by the total number of features for that site
+}
+
+#filter for relative abundances greater than 1% and 5%
+above1 <- r_abund %>% filter_at(2:13, (any_vars(. > .01))) 
+above2<- r_abund %>% filter_at(2:13, (any_vars(. > .025)))
+
+#create tidy plots of relative abundances for graphing purposes
+tidy_above1 <- above1 %>%
+  pivot_longer(EB29:EB40, names_to = "Sites", values_to = "Abundances")
+tidy_above2 <- above2 %>%   
+  pivot_longer(EB29:EB40, names_to = "Sites", values_to = "Abundances")
+```
+
+```{r Relative abundance plots}
+ggplot(tidy_above1, aes(x=Sites, y=Abundances, fill=family)) +
+  geom_bar(stat="identity") + theme_classic()
+
+ggplot(tidy_above2, aes(x=Sites, y=Abundances, fill=family)) +
+  geom_bar(stat="identity") + 
+  theme_classic()
+
+```
+
+## CLR Transform Data
+```{r CLR transform and NMDS}
+
+#CLR transform
+#bac_z <- cmultRepl(as.matrix(g_counts), output = 'p-counts') #create z scores
+f_counts[f_counts == 0] <- .01
+clr <- function(x) sweep(log(x), 1, rowMeans(log(x)), "-")
+bac_tx <- t(clr(t(f_counts))) #clr transform data
+
+#NMDS
+#bact_m <- as.matrix(t(bac_tx))
+Bact_nmds = metaMDS(t(bac_tx), distance = "euclidean")
+bact_scores = as.data.frame(scores(Bact_nmds))
+
+```
+```{r Plot NMDS}
+#Filter Metadata
+meta2 <- swmeta %>%
+  dplyr::select(Sample, Rain)
+bact_scores$Sample <- as.factor(rownames(bact_scores))
+meta2$Sample <- as.factor(meta2$Sample)
+bact_scores2 <- inner_join(bact_scores, meta2)
+
+#make plot
+B_T <- ggplot(data = bact_scores2, aes(x = NMDS1, y = NMDS2, color = Rain)) +
+  geom_point(size = 2) + 
+  theme_classic() 
+B_T 
+```
+
+## Perform Statistical Comparisons 
+```{r Peform PERMANOVA}
+#get  distances
+clrdat <- data.frame(t(bac_tx))
+swdist <- vegdist(clrdat, method = "euclidean")
+
+#do 10000 permutations
+swperm <- adonis2(swdist~Rain, data = rmeta, permutations = 9999, method = "euclidean")
+
+swperm
+
+```
+
+```{r Perform ANOSIM}
+swano <- anosim(clrdat, rmeta$Rain, permutations = 9999, distance = "euclidean")
+
+swano
+```
+
