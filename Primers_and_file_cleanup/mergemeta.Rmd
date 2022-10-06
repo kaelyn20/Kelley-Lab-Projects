@@ -1,0 +1,42 @@
+---
+title: "Merge Coupons"
+author: "Kaelyn Nannini"
+date: "6/17/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Load Library}
+library(dplyr)
+```
+
+
+```{r Load Data}
+coupon <- read.csv("PCR_Couponbook.csv", stringsAsFactors = T)
+all16s <- read.csv("All_16S_PCR.csv", stringsAsFactors = T)
+```
+
+```{r}
+coupon2 <- slice(coupon, 1:252)
+merged <- full_join(coupon2, all16s)
+```
+
+```{r Create file for qiime}
+meta <- merged %>%
+  select("sampleid" = CouponTime, "barcodes" = Primer_16S)
+
+write.table(meta, "metadata.tsv", row.names = F, sep = "\t")
+```
+
+
+```{r Write file out}
+all_meta <- merged %>%
+  select(1:3, 5, 12, "barcodes" = Primer_16S)
+
+write.table(all_meta, "metadata2.tsv", row.names = F, sep = "\t")
+```
+
+
