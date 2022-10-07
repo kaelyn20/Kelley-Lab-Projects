@@ -1,0 +1,236 @@
+---
+title: "Built Environment"
+author: "Kaelyn Nannini"
+date: "2/10/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Load libraries}
+library(ggplot2)
+library(dplyr)
+library(ggfortify)
+library(car)
+library(nlme)
+library(vegan)
+library(stringr)
+library(lme4)
+```
+
+```{r Load and fitler data}
+be_data <- read.csv("BE_meta.csv", stringsAsFactors = T, na.strings = c("", "na"))
+
+be <- be_data %>%
+  dplyr::select(1,2, 4, 5, 11, 12, 13) %>%
+  na.omit() #select only relevent data from dataset and remove NAs
+
+#change these variables to factor type variables
+be$Day <- as.factor(be$Day)
+#be$RH <- as.factor(be$RH)
+
+#check if data is balanced
+be %>% 
+  count(Day, RH) #shows that it is close to balanced, but slightly unbalanced
+
+head(be)
+```
+```{r Visualize data}
+#create basic plots to visualize data
+ggplot(be, aes(x=Materials, y= Objects.mL, color = RH)) + 
+  geom_boxplot() + 
+  facet_wrap(~Day) +
+  theme_classic()
+
+ggplot(be, aes(Day, y = Objects.mL, color = RH)) + 
+  geom_boxplot() + 
+  theme_classic()
+
+```
+
+
+```{r Create Initial Model}
+belme <- lme(log(Objects.mL) ~ RH * Day * Materials, random = ~1|CouponId, data = be, method = "ML", na.action = na.omit)
+
+
+plot(belme)
+qqnorm(resid(belme))
+qqline(resid(belme))
+hist(resid(belme))
+```
+```{r}
+summary(belme, test = 'F')
+
+options(contrasts = c("contr.sum", "contr.poly"))
+belme <- lme(log(Objects.mL) ~ RH * Day * Materials, random = ~1|CouponId, data = be, method = "ML", na.action = na.omit)
+Anova(belme, type = 3)
+options(contrasts = c("contr.treatment", "contr.poly"))
+```
+
+```{r Remove interaction}
+belme2 <- lme(log(Objects.mL) ~ RH * Day * Materials -RH:Materials, random = ~1|CouponId, data = be, method = "ML", na.action = na.omit)
+#belme2 <- update(belme, ~.-RH:Materials)
+
+anova(belme, belme2) #not significantly different
+```
+
+```{r Anova}
+belme2 <- lme(log(Objects.mL) ~ RH * Day * Materials -RH:Materials, random = ~1|CouponTime, data = be, method = "ML", na.action = na.omit)
+
+Anova(belme2, type = 2)
+```
+
+```{r See if coupon id affects model}
+belme2 <- lme(log(Objects.mL) ~ RH * Day * Materials -RH:Materials, random = ~1|CouponId, data = be, method = "ML", na.action = na.omit)
+belme3 <- lm(log(Objects.mL) ~ RH * Day * Materials -RH:Materials, data = be)
+
+
+anova(belme2, belme3) #not significantly different
+```
+
+```{r Drop }
+
+belme3 <- lm(log(Objects.mL) ~ RH * Day * Materials -RH:Materials, data = be)
+
+belme4 <- lm(log(Objects.mL) ~ RH * Day * Materials -RH:Materials -RH:Day, data = be)
+
+
+anova(belm)
+anova(belme3, belme4) #significantly different - Keep blme3
+Anova(belme3, type = 2)
+```
+
+```{r Make Plot}
+ggplot(be, aes(x = Materials, y = Objects.mL, color = RH)) +
+  geom_boxplot() +
+  labs(x="Material Type", y="Bacterial Cell Counts", color = "Treatment") +
+  facet_wrap(~Day) +
+  theme_classic()
+```
+
+```{r Load Taxonomy Data}
+bactax <- read.csv("clean_16S.tsv", sep = "\t", stringsAsFactors = T)
+itstax <-read.csv("clean_its.tsv", sep = "\t", stringsAsFactors = T)
+```
+
+```{r Filter data}
+bac <- bactax %>%
+#  filter(Domain == "Bacteria") %>%
+  dplyr::select(6, 8:260) %>%
+  group_by(Genus) %>%
+  summarise_all(sum)
+
+
+genera <- as.character(bac$Genus)
+genera[1] <- "Unclassified"
+bcnts <- bac[2:254]
+rownames(bcnts) <- genera
+tbac <- data.frame(t(bcnts))
+rownames(tbac) <- str_replace(rownames(tbac), "X", "")
+
+```
+
+```{r Fungal filter}
+its <- itstax %>%
+  filter(Domain == "Fungi") %>%
+  dplyr::select(6, 8:141) %>%
+  group_by(Genus) %>%
+  summarise_all(sum)
+
+fgen <- as.character(its$Genus)
+fgen[1] <- "Unclassified"
+fcnts <- its[2:135]
+rownames(fcnts) <- fgen
+tfun <- data.frame(t(fcnts))
+rownames(tfun) <- str_replace(rownames(tfun), "X", "")
+```
+
+
+```{r}
+shannon16S <- diversity(tbac, index = "shannon")
+shannonits <- diversity(tfun, index = "shannon")
+
+shannondf16S <- data.frame(shannon16S)
+shannondf16S$CouponTime <- rownames(shannondf16S)
+shannondfits <- data.frame(shannonits)
+shannondfits$CouponTime <- rownames(shannondfits)
+
+be_data <- full_join(be_data, shannondf16S)
+be_data <- full_join(be_data, shannondfits)
+
+be_data$Day <- as.factor(be_data$Day)
+be_data$RH <- as.factor(be_data$RH)
+```
+```{r Plots}
+ggplot(be_data, aes(x=Category, y=shannonits, color = RH)) +
+  geom_boxplot()
+
+ggplot(be_data, aes(x=Category, y=shannon16S, color = RH)) +
+  geom_boxplot()
+
+```
+
+
+```{r CLR Transform and NMDS}
+bcnts[bcnts == 0] <- .01
+clr <- function(x) sweep(log(x), 1, rowMeans(log(x)), "-")
+bac_tx <- t(clr(t(bcnts))) #clr transform data
+
+Bact_nmds = metaMDS(t(bac_tx), distance = "euclidean")
+bact_scores = as.data.frame(scores(Bact_nmds))
+```
+
+```{r Fungi Transform and NMDS}
+fcnts[fcnts == 0] <- .01
+clr <- function(x) sweep(log(x), 1, rowMeans(log(x)), "-")
+fun_tx <- t(clr(t(fcnts))) #clr transform data
+
+fun_nmds = metaMDS(t(fun_tx), distance = "euclidean")
+fun_scores = as.data.frame(scores(fun_nmds))
+```
+
+
+```{r Plot Fungal NMDS}
+#Filter Metadata
+fun_scores$CouponTime <- as.factor(str_replace(rownames(fun_scores), "X", ""))
+bemeta <- inner_join(fun_scores, be_data)
+bemeta$Day <- as.factor(bemeta$Day)
+
+#make plot
+B_T <- ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2, color = RH)) +
+  geom_point(size = 2) + 
+  theme_classic() 
+B_T 
+```
+
+```{r Distance matrices}
+
+```
+
+
+```{r Taxonomy}
+tax <- read.csv("10-07_16Sfeaturetable.txt", sep = "\t")
+colnames(tax) <- str_replace(colnames(tax), "X", "")
+
+tax[tax == 0] <- .01
+clr <- function(x) sweep(log(x), 1, rowMeans(log(x)), "-")
+bac_tx <- t(clr(t(tax[2:187]))) #clr transform data
+
+Bact_nmds = metaMDS(t(bac_tx), distance = "euclidean")
+bact_scores = as.data.frame(scores(Bact_nmds))
+
+
+#Filter Metadata
+bact_scores$CouponTime <- rownames(bact_scores)
+bemeta <- inner_join(bact_scores, be_data)
+bemeta$Day <- as.factor(bemeta$Day)
+
+#make plot
+B_T <- ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2, color = RH)) +
+  geom_point(size = 2) + 
+  theme_classic() 
+B_T 
+```
+
