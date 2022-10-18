@@ -1,7 +1,7 @@
 ---
 title: "Built Environment"
 author: "Kaelyn Nannini"
-date: "2/10/2022"
+date: "10/18/2022"
 output: html_document
 ---
 
@@ -20,39 +20,42 @@ library(stringr)
 library(lme4)
 ```
 
+##Affects on Bacterial Biomass
 ```{r Load and fitler data}
-be_data <- read.csv("BE_meta.csv", stringsAsFactors = T, na.strings = c("", "na"))
+be_data <- read.csv("PCR_Couponbook2.csv", stringsAsFactors = T, na.strings = c("", "na", "NA"))
 
-be <- be_data %>%
+be_bac <- be_data %>%
   dplyr::select(1,2, 4, 5, 11, 12, 13) %>%
-  na.omit() #select only relevent data from dataset and remove NAs
-
+  na.omit() #select only relevant data from dataset and remove NAs
 #change these variables to factor type variables
-be$Day <- as.factor(be$Day)
-#be$RH <- as.factor(be$RH)
+be_bac$Day <- as.factor(be_bac$Day)
+be_bac$CouponId <- as.factor(be_bac$CouponId)
 
 #check if data is balanced
-be %>% 
+be_bac %>% 
   count(Day, RH) #shows that it is close to balanced, but slightly unbalanced
 
-head(be)
+head(be_bac)
 ```
-```{r Visualize data}
+```{r Visualize bacterial count data}
 #create basic plots to visualize data
-ggplot(be, aes(x=Materials, y= Objects.mL, color = RH)) + 
+ggplot(be_bac, aes(x=Materials, y= log(Objects.mL), color = RH)) + 
   geom_boxplot() + 
   facet_wrap(~Day) +
   theme_classic()
 
-ggplot(be, aes(Day, y = Objects.mL, color = RH)) + 
+ggplot(be_bac, aes(Day, y = log(Objects.mL), color = RH)) + 
   geom_boxplot() + 
   theme_classic()
 
+ggplot(be_bac, aes(Materials, y = log(Objects.mL), color = RH)) +
+  geom_boxplot() + 
+  theme_classic()
 ```
 
 
 ```{r Create Initial Model}
-belme <- lme(log(Objects.mL) ~ RH * Day * Materials, random = ~1|CouponId, data = be, method = "ML", na.action = na.omit)
+belme <- lme(log(Objects.mL) ~ RH * Day * Materials, random = ~1|CouponId, data = be_bac, method = "ML", na.action = na.omit)
 
 
 plot(belme)
@@ -61,75 +64,155 @@ qqline(resid(belme))
 hist(resid(belme))
 ```
 ```{r}
-summary(belme, test = 'F')
+#summary(belme, test = 'F')
 
 options(contrasts = c("contr.sum", "contr.poly"))
-belme <- lme(log(Objects.mL) ~ RH * Day * Materials, random = ~1|CouponId, data = be, method = "ML", na.action = na.omit)
+belme <- lme(log(Objects.mL) ~ RH * Day * Materials, random = ~1|CouponId, data = be_bac, method = "ML", na.action = na.omit)
 Anova(belme, type = 3)
 options(contrasts = c("contr.treatment", "contr.poly"))
 ```
 
-```{r Remove interaction}
-belme2 <- lme(log(Objects.mL) ~ RH * Day * Materials -RH:Materials, random = ~1|CouponId, data = be, method = "ML", na.action = na.omit)
-#belme2 <- update(belme, ~.-RH:Materials)
+##Affects on Fungal Biomass
+```{r Filter out data}
+be_fun <- be_data %>%
+  dplyr::select(1,2, 4, 5, 11, 12, 17:18) %>%
+  na.omit()
 
-anova(belme, belme2) #not significantly different
+#change these variables to factor type variables
+be_fun$Day <- as.factor(be_fun$Day)
+be_fun$CouponId <- as.factor(be_fun$CouponId)
+
+be_fun$hyphae_length <- be_fun$hyphae_length + 1
+
+#check if the data is even
+cnt <- be_fun %>% 
+  count(Day, RH, Materials)
+
+head(cnt)
 ```
 
-```{r Anova}
-belme2 <- lme(log(Objects.mL) ~ RH * Day * Materials -RH:Materials, random = ~1|CouponTime, data = be, method = "ML", na.action = na.omit)
-
-Anova(belme2, type = 2)
-```
-
-```{r See if coupon id affects model}
-belme2 <- lme(log(Objects.mL) ~ RH * Day * Materials -RH:Materials, random = ~1|CouponId, data = be, method = "ML", na.action = na.omit)
-belme3 <- lm(log(Objects.mL) ~ RH * Day * Materials -RH:Materials, data = be)
-
-
-anova(belme2, belme3) #not significantly different
-```
-
-```{r Drop }
-
-belme3 <- lm(log(Objects.mL) ~ RH * Day * Materials -RH:Materials, data = be)
-
-belme4 <- lm(log(Objects.mL) ~ RH * Day * Materials -RH:Materials -RH:Day, data = be)
-
-
-anova(belm)
-anova(belme3, belme4) #significantly different - Keep blme3
-Anova(belme3, type = 2)
-```
-
-```{r Make Plot}
-ggplot(be, aes(x = Materials, y = Objects.mL, color = RH)) +
-  geom_boxplot() +
-  labs(x="Material Type", y="Bacterial Cell Counts", color = "Treatment") +
+```{r Visualize data}
+#create basic plots to visualize data
+ggplot(be_fun, aes(x=Materials, y= log(spore_density), color = RH)) + 
+  geom_boxplot() + 
+  labs(title = "Spore Densities") +
   facet_wrap(~Day) +
+  theme_classic()
+
+ggplot(be_fun, aes(x=Materials, y= log(hyphae_length), color = RH)) + 
+  geom_boxplot() + 
+  labs(title = "Hyhpae Lengths") +
+  facet_wrap(~Day) +
+  theme_classic() 
+
+ggplot(be_fun, aes(x=Day, y= log(spore_density), color = RH)) + 
+  geom_boxplot() + 
+  labs(title = "Spore Densities") +
+  theme_classic()
+
+ggplot(be_fun, aes(x=Day, y= log(hyphae_length), color = RH)) + 
+  geom_boxplot() + 
+  labs(title = "Hyphae Lengths") +
   theme_classic()
 ```
 
-```{r Load Taxonomy Data}
-bactax <- read.csv("clean_16S.tsv", sep = "\t", stringsAsFactors = T)
-itstax <-read.csv("clean_its.tsv", sep = "\t", stringsAsFactors = T)
+```{r Spore Check}
+slme <- lme(log(spore_density) ~ RH * Day * Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+
+
+plot(slme)
+qqnorm(resid(slme))
+qqline(resid(slme))
+hist(resid(slme))
 ```
 
-```{r Filter data}
-bac <- bactax %>%
-#  filter(Domain == "Bacteria") %>%
-  dplyr::select(6, 8:260) %>%
-  group_by(Genus) %>%
-  summarise_all(sum)
+```{r Run summary and ANOVA for slme}
+#summary(slme, test = 'F')
+
+options(contrasts = c("contr.sum", "contr.poly"))
+slme <- lme(log(spore_density) ~ RH * Day * Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+Anova(slme, type = 3)
+options(contrasts = c("contr.treatment", "contr.poly"))
+```
+
+```{r Drop RH:Materials:Day interaction}
+slme <- lme(log(spore_density) ~ RH * Day * Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+slme2 <- lme(log(spore_density) ~ RH * Day * Materials - RH:Day:Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+
+anova(slme, slme2) #not significant, use slme2
+```
+```{r Run ANOVA for slm2}
+options(contrasts = c("contr.sum", "contr.poly"))
+slme2 <- lme(log(spore_density) ~ RH * Day * Materials - RH:Day:Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+Anova(slme2, type = 3)
+options(contrasts = c("contr.treatment", "contr.poly"))
+```
+
+```{r Drop RH:Materials interaction}
+slme2 <- lme(log(spore_density) ~ RH * Day * Materials - RH:Day:Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+slme3 <- lme(log(spore_density) ~ RH * Day * Materials - RH:Day:Materials - RH:Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+
+anova(slme2, slme3) #not significant, use slme3
+```
+
+```{r Run ANOVA for slm3}
+options(contrasts = c("contr.sum", "contr.poly"))
+slme3 <- lme(log(spore_density) ~ RH * Day * Materials - RH:Day:Materials - RH:Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+Anova(slme3, type = 3)
+options(contrasts = c("contr.treatment", "contr.poly"))
+```
+
+```{r Hyphae Length Model}
+hlme <- lme(sqrt(hyphae_length) ~ RH * Day * Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
 
 
-genera <- as.character(bac$Genus)
-genera[1] <- "Unclassified"
-bcnts <- bac[2:254]
-rownames(bcnts) <- genera
-tbac <- data.frame(t(bcnts))
-rownames(tbac) <- str_replace(rownames(tbac), "X", "")
+plot(hlme)
+qqnorm(resid(hlme))
+qqline(resid(hlme))
+hist(resid(hlme))
+```
 
+```{r Run summary and ANOVA for hlme}
+#summary(hlme, test = 'F')
+
+options(contrasts = c("contr.sum", "contr.poly"))
+hlme <- lme(sqrt(hyphae_length) ~ RH * Day * Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+Anova(hlme, type = 3)
+options(contrasts = c("contr.treatment", "contr.poly"))
+```
+
+```{r Remove 3-way interaction}
+hlme <- lme(sqrt(hyphae_length) ~ RH * Day * Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+hlme2 <- lme(sqrt(hyphae_length) ~ RH * Day * Materials - RH:Materials:Day, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+
+anova(hlme, hlme2) #not significantly different, use hlme2
+```
+
+```{r Run ANOVA for hlme2}
+
+options(contrasts = c("contr.sum", "contr.poly"))
+hlme2 <- lme(sqrt(hyphae_length) ~ RH * Day * Materials - RH:Materials:Day, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+Anova(hlme2, type = 3)
+options(contrasts = c("contr.treatment", "contr.poly"))
+```
+
+```{r Remove RH:Materials interaction}
+hlme2 <- lme(sqrt(hyphae_length) ~ RH * Day * Materials - RH:Materials:Day, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+hlme3 <- lme(sqrt(hyphae_length) ~ RH * Day * Materials - RH:Materials:Day - RH:Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+
+anova(hlme2, hlme3) #not significantly different, use hlme3
+```
+
+```{r}
+options(contrasts = c("contr.sum", "contr.poly"))
+hlme3 <- lme(sqrt(hyphae_length) ~ RH * Day * Materials - RH:Materials:Day - RH:Materials, random = ~1|CouponId, data = be_fun, method = "ML", na.action = na.omit)
+Anova(hlme3, type = 3)
+options(contrasts = c("contr.treatment", "contr.poly"))
+```
+
+##Fungal Taxonomy
+```{r Load Taxonomy Data}
+itstax <-read.csv("clean_its.tsv", sep = "\t", stringsAsFactors = T)
 ```
 
 ```{r Fungal filter}
@@ -147,48 +230,13 @@ tfun <- data.frame(t(fcnts))
 rownames(tfun) <- str_replace(rownames(tfun), "X", "")
 ```
 
-
-```{r}
-shannon16S <- diversity(tbac, index = "shannon")
-shannonits <- diversity(tfun, index = "shannon")
-
-shannondf16S <- data.frame(shannon16S)
-shannondf16S$CouponTime <- rownames(shannondf16S)
-shannondfits <- data.frame(shannonits)
-shannondfits$CouponTime <- rownames(shannondfits)
-
-be_data <- full_join(be_data, shannondf16S)
-be_data <- full_join(be_data, shannondfits)
-
-be_data$Day <- as.factor(be_data$Day)
-be_data$RH <- as.factor(be_data$RH)
-```
-```{r Plots}
-ggplot(be_data, aes(x=Category, y=shannonits, color = RH)) +
-  geom_boxplot()
-
-ggplot(be_data, aes(x=Category, y=shannon16S, color = RH)) +
-  geom_boxplot()
-
-```
-
-
-```{r CLR Transform and NMDS}
-bcnts[bcnts == 0] <- .01
-clr <- function(x) sweep(log(x), 1, rowMeans(log(x)), "-")
-bac_tx <- t(clr(t(bcnts))) #clr transform data
-
-Bact_nmds = metaMDS(t(bac_tx), distance = "euclidean")
-bact_scores = as.data.frame(scores(Bact_nmds))
-```
-
 ```{r Fungi Transform and NMDS}
 fcnts[fcnts == 0] <- .01
 clr <- function(x) sweep(log(x), 1, rowMeans(log(x)), "-")
 fun_tx <- t(clr(t(fcnts))) #clr transform data
 
 fun_nmds = metaMDS(t(fun_tx), distance = "euclidean")
-fun_scores = as.data.frame(scores(fun_nmds))
+fun_scores = as.data.frame(scores(fun_nmds, display = "sites"))
 ```
 
 
@@ -199,38 +247,68 @@ bemeta <- inner_join(fun_scores, be_data)
 bemeta$Day <- as.factor(bemeta$Day)
 
 #make plot
-B_T <- ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2, color = RH)) +
-  geom_point(size = 2) + 
+ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2, color = RH)) +
+  geom_point(size = 2) +
+  labs(title = "Fungal NMDS by Treatment") + 
   theme_classic() 
-B_T 
+
+ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2, color = Day)) +
+  geom_point(size = 2) +
+  labs(title = "Fungal NMDS by Day") + 
+  theme_classic() 
+
+ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2, color = Materials)) +
+  geom_point(size = 2) +
+  labs(title = "Fungal NMDS by Material") + 
+  theme_classic() 
 ```
 
-```{r Distance matrices}
-
+##Bacteria Taxonomy
+```{r Load and filter bacteria}
+bac_tax <- read.csv("10-14_16S_feature_table.txt", sep = "\t")
+colnames(bac_tax) <- str_replace(colnames(bac_tax), "X", "")
 ```
 
-
-```{r Taxonomy}
-tax <- read.csv("10-07_16Sfeaturetable.txt", sep = "\t")
-colnames(tax) <- str_replace(colnames(tax), "X", "")
-
-tax[tax == 0] <- .01
+```{r Bacteria CLR Transform and NMDS}
+bac_tax[bac_tax == 0] <- .01
 clr <- function(x) sweep(log(x), 1, rowMeans(log(x)), "-")
-bac_tx <- t(clr(t(tax[2:187]))) #clr transform data
+bac_tx <- t(clr(t(bac_tax[2:187]))) #clr transform data
 
 Bact_nmds = metaMDS(t(bac_tx), distance = "euclidean")
-bact_scores = as.data.frame(scores(Bact_nmds))
+bact_scores = as.data.frame(scores(Bact_nmds, display = "sites"))
+```
 
 
+``` {r Plot Bacteria NMDS}
 #Filter Metadata
 bact_scores$CouponTime <- rownames(bact_scores)
 bemeta <- inner_join(bact_scores, be_data)
 bemeta$Day <- as.factor(bemeta$Day)
 
 #make plot
-B_T <- ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2, color = RH)) +
+ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2, color = RH)) +
   geom_point(size = 2) + 
+  labs(title = "Bacterial NMDS by Treatment") +
   theme_classic() 
-B_T 
-```
+#  theme(title = element_text(face = "bold", size = 15), axis.text = element_text(size = 11), legend.title = element_text(size = 14, face = "italic"), legend.text = element_text(size = 11))
 
+ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2, color = Day)) +
+  geom_point(size = 2) +
+  labs(title = "Bacterial NMDS by Day") + 
+  theme_classic() 
+
+ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2, color = Materials)) +
+  geom_point(size = 2) +
+  labs(title = "Bacterial NMDS by Material") + 
+  theme_classic() 
+```
+```{r Peform PERMANOVA for Bacteria}
+#get  distances
+bswdist <- vegdist(t(bac_tx), method = "euclidean")
+
+#do 10000 permutations
+bswperm <- adonis2(bswdist~ RH * Materials * Day, data = bemeta, permutations = 9999, method = "euclidean") #look at strata command
+
+bswperm
+
+```
