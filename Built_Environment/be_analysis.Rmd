@@ -1,7 +1,7 @@
 ---
 title: "Built Environment"
 author: "Kaelyn Nannini"
-date: "03-05-2023"
+date: "03-27-2023"
 output: html_document
 ---
 
@@ -16,14 +16,15 @@ library(ggfortify) #for residuals and qqnorm
 library(car) #for Anova type 3
 library(nlme) #for mixed linear effects models
 library(vegan) #for diversity analysis
-library(stringr) #for formating and changing
-library(lme4) #for mixed linear effects models
+library(stringr) #for formatting and changing
 library(corrplot) #for correlation plots
 library(tidyr)
 library(randomForest)
 library(paletteer)
 library(rcompanion) #for tukey transformation
 library(caTools)
+library(ggpubr)
+library(lme4)
 ```
 
 ```{r Load and fitler data}
@@ -56,22 +57,15 @@ head(be_bac)
 ```{r Visualize bacterial count data}
 #create basic plots to visualize data
 bac <- ggplot(be_bac, aes(x=Materials, y= log(Objects.mL), color = RH)) + 
-  geom_boxplot(linewidth = 1) + 
+  geom_boxplot() + 
   facet_wrap(~Day) +
   labs(x = "Material Type", y = "Bacterial Density", color = "Treatment") +
-  scale_color_discrete(labels = c("Cycling", "Wet")) +
+#  scale_color_discrete(labels = c("Cycling", "Wet")) +
   theme_classic() +
-  theme(title = element_text(size = 30, face = "bold"), axis.text = element_text(size = 18), legend.title = element_text(size = 25, face = "italic"), legend.text = element_text(size = 22), strip.text = element_text(size = 22))
+  theme(title = element_text(size = 12, face = "bold"), axis.text = element_text(size = 7), strip.text = element_text(size = 10), legend.position = "none") 
 
 bac
 
-ggplot(be_bac, aes(Day, y = log(Objects.mL), color = RH)) + 
-  geom_boxplot(linewidth = 1) + 
-  theme_classic()
-
-ggplot(be_bac, aes(Materials, y = log(Objects.mL), color = RH)) +
-  geom_boxplot() + 
-  theme_classic()
 ```
 
 ```{r Create Initial Bac Model}
@@ -85,18 +79,13 @@ hist(resid(belme))
 ```
 
 ```{r Bacterial Initial ANOVA}
-#summary(belme, test = 'F')
+summary(belme, test = 'F')
 
 options(contrasts = c("contr.sum", "contr.poly"))
 belme <- lme(log(Objects.mL) ~ RH * Day * Materials, random = ~1|CouponId, data = be_bac, method = "ML", na.action = na.omit)
 Anova(belme, type = 3)
 options(contrasts = c("contr.treatment", "contr.poly"))
 ```
-
-```{r Bacterial Pairwise}
-emmeans(belme, list(pairwise ~ RH:Day:Materials), adjust = "tukey")
-```
-
 
 ##Affects on Fungal Biomass
 
@@ -112,23 +101,27 @@ cnt <- be_fun %>%
   count(Day, RH, Materials)
 
 head(cnt)
+
+be_fun$hyphae_transform <- transformTukey(be_fun$hyphae_length, plotit = FALSE)
 ```
 
 ```{r Visualize data}
 #create basic plots to visualize data
-spore <- ggplot(be_fun, aes(x=Day, y= log(spore_density), color = RH)) + 
-  geom_boxplot(linewidth = 1) + 
-  labs(x = "Day", y = "Spore Density", color = "Material") +
+spore <- ggplot(be_fun, aes(x= Materials, y= log(spore_density))) + 
+  geom_boxplot() + 
+  labs(x = "Material Type", y = "Spore Density", color = "Treatment") +
+  #facet_wrap(~Day) +
   theme_classic() + 
-  theme(title = element_text(size = 30, face = "bold"), axis.text = element_text(size = 18), legend.title = element_text(size = 25, face = "italic"), legend.text = element_text(size = 22), strip.text = element_text(size = 22))
+  theme(title = element_text(size = 12, face = "bold"), axis.text = element_text(size = 7), strip.text = element_text(size = 10)) 
 spore
 
-hyphae <- ggplot(be_fun, aes(x=Day, y= log(hyphae_length), color = Materials)) + 
-  geom_boxplot(linewidth =1) + 
-  scale_color_discrete(labels = c("MDF", "GW", "OSB")) +
-  labs(x = "Day", y = "Hyphae Length", color = "Material") +
+hyphae <- ggplot(be_fun, aes(x= Materials, y= hyphae_transform)) + 
+  geom_boxplot() + 
+  labs(x = "Material Type", y = "Hyphae Length", color = "RH") +
+#  facet_wrap(~Day) +
   theme_classic() +
-  theme(title = element_text(size = 30, face = "bold"), axis.text = element_text(size = 18), legend.title = element_text(size = 25, face = "italic"), legend.text = element_text(size = 22), strip.text = element_text(size = 22))
+  theme(title = element_text(size = 12, face = "bold"), axis.text = element_text(size = 7), strip.text = element_text(size = 10), legend.position = "none") 
+
 hyphae
 ```
 
@@ -242,7 +235,7 @@ Anova(hlme4, type = 3)
 options(contrasts = c("contr.treatment", "contr.poly"))
 ```
 
-## ATP Linear Model
+##ATP Linear Model
 
 ```{r Create Initial Model}
 alme <- lme(sqrt(ATP) ~ RH * Day * Materials, random = ~1|CouponId, data = be_bac, method = "ML", na.action = na.omit)
@@ -268,8 +261,7 @@ atp <- ggplot(be_bac, aes(x=Materials, y= sqrt(ATP), color = RH)) +
   labs(x = "Material Type", y = "Energy Output", color = "Treatment") +
   scale_color_discrete(labels = c("Cycling", "Wet")) +
   theme_classic() +
-  theme() + 
-  theme(title = element_text(face = "bold", size = 15), axis.text = element_text(size = 11), legend.title = element_text(size = 14, face = "italic"), legend.text = element_text(size = 11))
+  theme(title = element_text(size = 12, face = "bold"), axis.text = element_text(size = 7), strip.text = element_text(size = 10)) 
 
 atp
 ```
@@ -304,15 +296,20 @@ fun_scores$CouponTime <- as.character(str_replace(rownames(fun_scores), "X", "")
 bemeta <- inner_join(fun_scores, be_data)
 bemeta$Day <- as.factor(bemeta$Day)
 
+df <- bemeta %>%
+  filter(RH == "WET") %>%
+  filter(Day == 49)
 
-p <- ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2)) +
-  geom_point(aes(NMDS1, NMDS2, colour = Category, shape = factor(Day)), size = 2.5) +
+#make plot
+p <- ggplot(data = df) +
+  geom_point(aes(x = NMDS1, y = NMDS2, color = Materials), size = 2)  +
+  stat_ellipse(geom = "polygon", aes(x = NMDS1, y = NMDS2, color = Materials, fill = Materials), alpha = .25) +
+  scale_x_continuous(limits = c(-110, 110)) +
+  scale_y_continuous(limits = c(-65, 75)) +
   theme_classic() + 
-  labs(shape = "Day", color = "Material") +
-  facet_wrap(~RH) +
-  theme(title = element_text(face = "bold", size = 15), axis.text = element_text(size = 11), legend.title = element_text(size = 14, face = "italic"), legend.text = element_text(size = 11))
+  theme(title = element_text(face = "bold", size = 18), axis.text = element_text(size = 13), legend.text = element_text(size = 15))
 
-p
+ggsave("fun_wet49.tiff", p, device = "tiff", width = 5.75, height = 3.75, units = "in")
 ```
 
 ```{r PERMANOVA for Fungi}
@@ -426,7 +423,7 @@ frc <- ggplot(fptrmc, aes (x= Day, y = Mean_Abund, fill = Family)) +
   scale_fill_manual(values = facyc$colors) +
   facet_wrap(~Materials) + 
   theme_classic() +
-  theme(title = element_text(size = 30, face = "bold"), axis.text = element_text(size = 18), legend.title = element_text(size = 25, face = "italic"), legend.text = element_text(size = 22), strip.text = element_text(size = 22))
+  theme(title = element_text(face = "bold"), legend.title = element_text(face = "italic"), legend.position = "none")
 
 frw <- ggplot(fptrmw, aes (x= Day, y = Mean_Abund, fill = Family)) +
   geom_bar(stat = "identity") +
@@ -434,20 +431,22 @@ frw <- ggplot(fptrmw, aes (x= Day, y = Mean_Abund, fill = Family)) +
   scale_fill_manual(values = fawet$colors) +
   facet_wrap(~Materials) +
   theme_classic() +
-  theme(title = element_text(size = 30, face = "bold"), axis.text = element_text(size = 18), legend.title = element_text(size = 25, face = "italic"), legend.text = element_text(size = 22), strip.text = element_text(size = 22))
+  theme(title = element_text(face = "bold"), legend.title = element_text(face = "italic"), legend.position = "none")
 
 #Quantitative
-ggplot(fptqmc, aes (x= Day, y = Mean_Abund, fill = Family)) +
+fqc <- ggplot(fptqmc, aes (x= Day, y = Mean_Abund, fill = Family)) +
          geom_bar(stat = "identity") + 
-  labs(title = "Fungal Quantitative Abundances- Cycling") +
   scale_fill_manual(values = facyc$colors) +
-  facet_wrap(~Materials)
+  facet_wrap(~Materials) + 
+  theme_classic() +
+  theme(title = element_text(face = "bold"), legend.title = element_text(face = "italic"), legend.position = "none")
 
-ggplot(fptqmw, aes (x= Day, y = Mean_Abund, fill = Family)) +
+fqw <- ggplot(fptqmw, aes (x= Day, y = Mean_Abund, fill = Family)) +
          geom_bar(stat = "identity") +
-  labs(title = "Fungal Quantitative Abundances- Wet") +
   scale_fill_manual(values = fawet$colors) +
-  facet_wrap(~Materials)
+  facet_wrap(~Materials) +
+  theme_classic() +
+  theme(title = element_text(face = "bold"), legend.title = element_text(face = "italic"), legend.position = "none")
 
 ```
 
@@ -478,23 +477,23 @@ bact_scores = as.data.frame(scores(Bact_nmds, display = "sites"))
 #Filter Metadata
 bact_scores$CouponTime <- rownames(bact_scores)
 bemeta <- inner_join(bact_scores, be_data[c(1, 5, 11:12)])
-bemeta$Day <- as.factor(bemeta$Day)
+bemeta$Day <- as.factor(bemeta$Day) 
+
+df <- bemeta %>%
+  filter(RH == "CYC") %>%
+  filter(Day == 7)
 
 #make plot
-p <- ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2)) +
-  geom_point(aes(NMDS1, NMDS2, colour = Materials, shape = factor(Day)), size = 2.5) +
+p <- ggplot(data = df) +
+  geom_point(aes(x = NMDS1, y = NMDS2, color = Materials), size = 2)  +
+  stat_ellipse(geom = "polygon", aes(x = NMDS1, y = NMDS2, color = Materials, fill = Materials), alpha = .25) +
+  scale_x_continuous(limits = c(-80, 80)) +
+  scale_y_continuous(limits = c(-65, 75)) +
   theme_classic() + 
-  labs(shape = "Day", color = "Material") +
-  facet_wrap(~RH) +
-  theme(title = element_text(face = "bold", size = 15), axis.text = element_text(size = 11), legend.title = element_text(size = 14, face = "italic"), legend.text = element_text(size = 11))
+  theme(title = element_text(face = "bold", size = 18), axis.text = element_text(size = 13), legend.position = "none")
 
-p
+p 
 ```
-
-```{r Run envfit}
-envfit(Bact_nmds, bemeta[4:6])
-```
-
 
 ```{r Peform PERMANOVA for Bacteria}
 #get  distances
@@ -538,15 +537,20 @@ bact_scores$CouponTime <- rownames(bact_scores)
 bemeta <- inner_join(bact_scores, be_data[c(1, 5, 11:12)])
 bemeta$Day <- as.factor(bemeta$Day)
 
-#make plot
-p <- ggplot(data = bemeta, aes(x = NMDS1, y = NMDS2)) +
-  geom_point(aes(NMDS1, NMDS2, colour = Materials, shape = factor(Day)), size = 2.5) +
-  theme_classic() + 
-  labs(shape = "Day", color = "Material") +
-  facet_wrap(~RH) +
-  theme(title = element_text(face = "bold", size = 15), axis.text = element_text(size = 11), legend.title = element_text(size = 14, face = "italic"), legend.text = element_text(size = 11))
+df <- bemeta %>%
+  filter(RH == "WET") %>%
+  filter(Day == 7)
 
-p
+#make plot
+p <- ggplot(data = df) +
+  geom_point(aes(x = NMDS1, y = NMDS2, color = Materials), size = 2)  +
+  stat_ellipse(geom = "polygon", aes(x = NMDS1, y = NMDS2, color = Materials, fill = Materials), alpha = .25) +
+  scale_x_continuous(limits = c(-80, 80)) +
+  scale_y_continuous(limits = c(-65, 75)) +
+  theme_classic() + 
+  theme(title = element_text(face = "bold", size = 18), axis.text = element_text(size = 13), legend.position = "none")
+
+p 
 ```
 
 ```{r}
@@ -561,7 +565,7 @@ bac_tax2 <- read.csv("clean_16Stable.tsv", sep = "\t", stringsAsFactors = T)
 
 pbac <- bac_tax2 %>%
   filter(Domain == "Bacteria") %>%
-  dplyr::select(5, 8:244) %>%
+  dplyr::select(5, 8:243) %>%
   group_by(Family) %>%
   summarise_all(sum)
 
@@ -570,12 +574,12 @@ pbac[1,1] <- as.character("Unclassified")
 colnames(pbac) <- str_replace(colnames(pbac), "X", "")
 ```
 
-```{r Bacteia Phyla Abundances}
+```{r Bacteia Family Abundances}
 bcnt_samp <- as.character(pull(be_bac, CouponTime)) #get sample IDs that have bacterial count data
 
 #get OTU table of only samples that have bacterial cell counts
 bptax_filt <- pbac %>%
-  select(any_of(bcnt_samp))
+  select(any_of(bcnt_samp)) 
 
 #get total number of reads for each sample
 totals <-colSums(bptax_filt)
@@ -641,7 +645,7 @@ bptqmc$Family <- bptrmc$Family #list families less than 5% as "other"
 bacyc <- bptrmc %>% ungroup() %>% distinct(Family) %>% arrange(Family)
 bawet <- bptrmw %>% ungroup() %>% distinct(Family) %>% arrange(Family)
 
-comb <- data.frame(full_join(bacyc, bawet), "colors" = as.character(paletteer_d("ggthemes::Classic_20")[1:15]))
+comb <- data.frame(full_join(bacyc, bawet), "colors" = as.character(paletteer_d("ggthemes::Classic_20")[1:16]))
 
 bacyc <- inner_join(bacyc, comb)
 bawet <- inner_join(bawet, comb)
@@ -653,7 +657,7 @@ rc <- ggplot(bptrmc, aes (x= Day, y = Mean_Abund, fill = Family)) +
   scale_fill_manual(values = bacyc$colors) +
   facet_wrap(~Materials) + 
   theme_classic() +
-  theme(title = element_text(size = 30, face = "bold"), axis.text = element_text(size = 18), legend.title = element_text(size = 25, face = "italic"), legend.text = element_text(size = 22), strip.text = element_text(size = 22))
+  theme(title = element_text(size = 20, face = "bold"), axis.text = element_text(size = 12), strip.text = element_text(size = 18)) 
 rc 
 
 rw <- ggplot(bptrmw, aes (x= Day, y = Mean_Abund, fill = Family)) +
@@ -662,7 +666,7 @@ rw <- ggplot(bptrmw, aes (x= Day, y = Mean_Abund, fill = Family)) +
   scale_fill_manual(values = bawet$colors) +
   facet_wrap(~Materials) +
   theme_classic() +
-  theme(title = element_text(size = 30, face = "bold"), axis.text = element_text(size = 18), legend.title = element_text(size = 25, face = "italic"), legend.text = element_text(size = 22), strip.text = element_text(size = 22)) 
+  theme(title = element_text(size = 20, face = "bold"), axis.text = element_text(size = 12), strip.text = element_text(size = 18)) 
   
 rw
 
@@ -673,7 +677,7 @@ qc <- ggplot(bptqmc, aes (x= Day, y = Mean_Abund, fill = Family)) +
   scale_fill_manual(values = bacyc$colors) +
   facet_wrap(~Materials) +
   theme_classic() +
-  theme(title = element_text(size = 30, face = "bold"), axis.text = element_text(size = 18), legend.title = element_text(size = 25, face = "italic"), legend.text = element_text(size = 22), legend.position = "none", strip.text = element_text(size = 22)) 
+  theme(title = element_text(size = 20, face = "bold"), axis.text = element_text(size = 12), legend.position = "none", strip.text = element_text(size = 18)) 
 
 qc 
 
@@ -683,25 +687,20 @@ qw <- ggplot(bptqmw, aes (x= Day, y = Mean_Abund, fill = Family)) +
   scale_fill_manual(values = bawet$colors) +
   facet_wrap(~Materials) +
   theme_classic() +
-  theme(title = element_text(size = 30, face = "bold"), axis.text = element_text(size = 18), legend.title = element_text(size = 25, face = "italic"), legend.text = element_text(size = 22), legend.position = "none", strip.text = element_text(size = 22)) 
+  theme(title = element_text(size = 20, face = "bold"), axis.text = element_text(size = 12), legend.position = "none", strip.text = element_text(size = 18)) 
 
 qw
 ```
 
-
 ##Random Forest
 
 ```{r Format Data- Bacteria}
-#clr transform data
-#pbac[pbac == 0] <- .01
-#bfamtx <- as.data.frame(clr(t(pbac[-1])))
-#colnames(bfamtx) <- pbac$Family
 bfamtx <- data.frame(t(bac_tx), "CouponTime" = colnames(bac_tx))
 
 #combine taxa table with metadata
 bfamtx$CouponTime <- rownames(bfamtx)
 bdata <- inner_join(bfamtx, be_data %>%
-                      select(CouponTime, Materials, RH, Day))
+         select(CouponTime, Materials, RH, Day)) 
 bdata$Day <- as.factor(bdata$Day)
 
 wet <- bdata %>%
@@ -710,115 +709,191 @@ wet <- bdata %>%
 cyc <- bdata %>%
   filter(RH == "CYC")
 
-split <- sample.split(cyc, SplitRatio = .7)
+split <- sample.split(wet, SplitRatio = .7)
 ```
 
-
-```{r Train model- Bacteria}
+```{r Train model- Bacteria wet}
 #split into train/test data sets
-train <- subset(bdata, split == "TRUE") %>%
+train <- subset(wet, split == "TRUE") %>%
   na.omit()
-test <- subset(bdata, split == "FALSE") %>%
+test <- subset(wet, split == "FALSE") %>%
   na.omit()
 
 #fitting rf classifier
 set.seed(120)
-classifier_RF <- randomForest(x = train[-c(365)],
-                              y = train$Day,
+classifier_RF <- randomForest(x = train[-c(362:365)],
+                              y = train$Materials,
                               ntree = 1000)
-classifier_RF
+classifier_RF #error rate: 30.77%
 ```
 
-```{r Test model - Bacteria}
+```{r Test model - Bacteria wet}
 y_pred <- predict(classifier_RF, newdata = test[-c(363)])
 
 conf_mtx <- table(test$Materials, y_pred)
 conf_mtx
 
 brhimp <- importance(classifier_RF)
-#brhimp
+brfwet <- data.frame(brhimp) %>%
+  filter(MeanDecreaseGini >= 1.0)
 ```
 
+```{r Train model- Bacteria cyc}
+#split into train/test data sets
+split <- sample.split(cyc, SplitRatio = .7)
+train <- subset(cyc, split == "TRUE") %>%
+  na.omit()
+test <- subset(cyc, split == "FALSE") %>%
+  na.omit()
+
+#fitting rf classifier
+set.seed(120)
+classifier_RF <- randomForest(x = train[-c(362:365)],
+                              y = train$Materials,
+                              ntree = 1000)
+classifier_RF #error rate: 37.63%
+```
+
+```{r Test model - Bacteria cyc}
+y_pred <- predict(classifier_RF, newdata = test[-c(363)])
+
+conf_mtx <- table(test$Materials, y_pred)
+conf_mtx
+
+brhimp <- importance(classifier_RF)
+brfcyc <- data.frame(brhimp) %>%
+  filter(MeanDecreaseGini >= 1.0)
+
+```
+
+```{r Format Data- Fungi}
+ftx <- data.frame(t(fun_tx), "CouponTime" = colnames(fun_tx))
+
+#combine taxa table with metadata
+ftx$CouponTime <- rownames(ftx)
+fdata <- inner_join(ftx, be_data %>%
+         select(CouponTime, Materials, RH, Day)) 
+fdata$Day <- as.factor(fdata$Day)
+
+split <- sample.split(fdata, SplitRatio = .7)
+```
+
+```{r Train model- Fungi}
+#split into train/test data sets
+train <- subset(fdata, split == "TRUE") %>%
+  na.omit()
+test <- subset(fdata, split == "FALSE") %>%
+  na.omit()
+
+#fitting rf classifier
+set.seed(120)
+classifier_RF <- randomForest(x = train[-c(184:187)],
+                              y = train$Materials,
+                              ntree = 1000)
+classifier_RF #error rate: 23.91%
+```
+
+```{r Test model - Fungi}
+y_pred <- predict(classifier_RF, newdata = test[-c(185)])
+
+conf_mtx <- table(test$Materials, y_pred)
+conf_mtx
+
+frhimp <- importance(classifier_RF)
+ffeat <- data.frame(frhimp) %>%
+  filter(MeanDecreaseGini >= 1.0)
+```
 
 ##Correlation Tests
 
 ```{r Filter data}
-#No filter correlation
-be_nofilt <- be_data %>%
-  select(ATP, Objects.mL, spore_density, hyphae_length) %>%
-  na.omit()
-nfcor <- cor(be_nofilt)
-corrplot(nfcor)
-
 #Fiberboard correlation plot
-be_fbcor <- be_data %>%
+be_fbcorcyc <- be_data %>%
   filter(Materials == "MDF") %>%
-  select(ATP, Objects.mL, spore_density, hyphae_length) %>%
-  na.omit()
-fbcor <- cor(be_fbcor)
-corrplot(fbcor)
-
-#OSB correlation plot
-be_osbcor <- be_data %>%
-  filter(Materials == "OSB") %>%
-  select(ATP, Objects.mL, spore_density, hyphae_length) %>%
-  na.omit()
-osbcor <- cor(be_osbcor)
-corrplot(osbcor)
-
-#GW correlation plot
-be_gwcor <- be_data %>%
-  filter(Materials == "GW") %>%
-  select(ATP, Objects.mL, spore_density, hyphae_length) %>%
-  na.omit()
-gwcor <- cor(be_gwcor)
-corrplot(gwcor)
-```
-
-```{r Correlation plots by treatment}
-be_wetcor <- be_data %>%
-  filter(RH == "WET") %>%
-  select(ATP, Objects.mL, spore_density, hyphae_length) %>%
-  na.omit()
-wetcor <- cor(be_wetcor)
-corrplot(wetcor)
-
-
-be_cyccor <- be_data %>%
   filter(RH == "CYC") %>%
   select(ATP, Objects.mL, spore_density, hyphae_length) %>%
   na.omit()
-cyccor <- cor(be_cyccor)
-corrplot(cyccor)
+fbcorcyc <- cor(be_fbcorcyc)
+corrplot(fbcorcyc)
+
+be_fbcorwet <- be_data %>%
+  filter(Materials == "MDF") %>%
+  filter(RH == "WET") %>%
+  select(ATP, Objects.mL, spore_density, hyphae_length) %>%
+  na.omit()
+fbcorwet <- cor(be_fbcorwet)
+corrplot(fbcorwet)
+
+#OSB correlation plot
+be_osbcorcyc <- be_data %>%
+  filter(Materials == "OSB") %>%
+  filter(RH == "CYC") %>%
+  select(ATP, Objects.mL, spore_density, hyphae_length) %>%
+  na.omit()
+osbcorcyc <- cor(be_osbcorcyc)
+corrplot(osbcorcyc)
+
+be_osbcorwet <- be_data %>%
+  filter(Materials == "OSB") %>%
+  filter(RH == "WET") %>%
+  select(ATP, Objects.mL, spore_density, hyphae_length) %>%
+  na.omit()
+osbcorwet <- cor(be_osbcorwet)
+corrplot(osbcorwet)
+
+#GW correlation plot
+be_gwcorwet <- be_data %>%
+  filter(Materials == "GW") %>%
+  filter(RH == "WET") %>%
+  select(ATP, Objects.mL, spore_density, hyphae_length) %>%
+  na.omit()
+gwcorwet <- cor(be_gwcorwet)
+corrplot(gwcorwet)
+
+be_gwcorcyc <- be_data %>%
+  filter(Materials == "GW") %>%
+  filter(RH == "CYC") %>%
+  select(ATP, Objects.mL, spore_density, hyphae_length) %>%
+  na.omit()
+gwcorcyc <- cor(be_gwcorcyc)
+corrplot(gwcorcyc)
 ```
+
 
 ##Alpha Diversity
 
 ```{r Import Data}
 #load alpha diversity given by qiime
 c16s <- read.csv("chao1_16S.tsv", stringsAsFactors = T, sep= '\t')
-#cits <- read.csv("chao1_its.tsv", stringsAsFactors = T, sep= '\t')
+cits <- read.csv("chao1_its.tsv", stringsAsFactors = T, sep= '\t')
 s16s <- read.csv("shannon16S.tsv", stringsAsFactors = T, sep= '\t')
-#sits <- read.csv("shannonits.tsv", stringsAsFactors = T, sep= '\t')
+sits <- read.csv("shannonits.tsv", stringsAsFactors = T, sep= '\t')
 e16s <- read.csv("evenness16S.tsv", stringsAsFactors = T, sep= '\t')
-#eits <- read.csv("evennessits.tsv", stringsAsFactors = T, sep= '\t')
+eits <- read.csv("evennessits.tsv", stringsAsFactors = T, sep= '\t')
 faith <- read.csv("faithspd16S.tsv", stringsAsFactors = T, sep = '\t')
 
 #combine all alpha into one file with metadata
-alpha <- be_data %>%
+alpha_bac <- be_data %>%
   select(1,2, 4, 5, 11, 12) %>%
   full_join(c16s) %>%
-#  full_join(cits) %>%
   full_join(s16s) %>%
-#  full_join(sits) %>%
   full_join(e16s) %>%
-#  full_join(eits) %>%
   full_join(faith) %>%
   na.omit()
+  
+alpha_fun <- be_data %>%
+  select(1,2, 4, 5, 11, 12) %>%
+  full_join(cits) %>%
+  full_join(sits) %>%
+  full_join(eits) %>%
+  na.omit()
+
+alpha_bac$Day <- as.factor(alpha_bac$Day)
+alpha_fun$Day <- as.factor(alpha_fun$Day)
 ```
 
 ```{r Create linear model 16S chao1}
-c16slm <- lme(log(chao1) ~ RH * Day * Materials, random = ~1|CouponId, data = alpha, method = "ML", na.action = na.omit)
+c16slm <- lmer(log(chao1) ~ RH * Day * Materials + (1|CouponId), data = alpha_bac, REML = FALSE, na.action = na.omit)
 
 
 plot(c16slm)
@@ -826,26 +901,22 @@ qqnorm(resid(c16slm))
 qqline(resid(c16slm))
 hist(resid(c16slm))
 ```
-
 ```{r 16S Chao1 ANOVA}
 options(contrasts = c("contr.sum", "contr.poly"))
-c16slm <- lme(log(chao1) ~ RH * Day * Materials, random = ~1|CouponId, data = alpha, method = "ML", na.action = na.omit)
+c16slm <- lmer(log(chao1) ~ RH * Day * Materials + (1|CouponId), data = alpha_bac, REML = FALSE, na.action = na.omit)
 Anova(c16slm, type = 3)
 options(contrasts = c("contr.treatment", "contr.poly"))
 ```
-```{r Plot Choa1}
-ggplot(alpha, aes(x=Materials, y= log(chao1), color = RH)) + 
+```{r Plot Chao1}
+ggplot(alpha_bac, aes(x=Materials, y= log(chao1), color = RH)) + 
   geom_boxplot() + 
   facet_wrap(~Day) +
   labs(x = "Material Type", y = "Chao1 Richness", color = "Treatment") +
   scale_color_discrete(labels = c("Cycling", "Wet")) +
   theme_classic()
 ```
-
-
-
 ```{r Create linear model 16S Shannon}
-s16slm <- lme(shannon_entropy ~ RH * Day * Materials, random = ~1|CouponId, data = alpha, method = "ML", na.action = na.omit)
+s16slm <- lmer(shannon_entropy ~ RH * Day * Materials +  (1|CouponId), data = alpha_bac, REML = FALSE, na.action = na.omit)
 
 
 plot(s16slm)
@@ -853,27 +924,23 @@ qqnorm(resid(s16slm))
 qqline(resid(s16slm))
 hist(resid(s16slm))
 ```
-
 ```{r 16S Shannon ANOVA}
 options(contrasts = c("contr.sum", "contr.poly"))
-s16slm <- lme(shannon_entropy ~ RH * Day * Materials, random = ~1|CouponId, data = alpha, method = "ML", na.action = na.omit)
+s16slm <- lmer(shannon_entropy ~ RH * Day * Materials +  (1|CouponId), data = alpha_bac, REML = FALSE, na.action = na.omit)
 Anova(s16slm, type = 3)
 options(contrasts = c("contr.treatment", "contr.poly"))
 ```
 ```{r Plot shannon}
-ggplot(alpha, aes(x=Materials, y= shannon_entropy, color = RH)) + 
+ggplot(alpha_bac, aes(x= as.factor(Day), y= shannon_entropy, color = RH)) + 
   geom_boxplot() + 
-  facet_wrap(~Day) +
-  labs(x = "Material Type", y = "Bacterial Density", color = "Treatment") +
+  facet_wrap(~Materials) +
   scale_color_discrete(labels = c("Cycling", "Wet")) +
   theme_classic()
 ```
-
 ```{r Create linear model 16S Evenness}
-#needs work
-alpha$eventransform <- transformTukey(alpha$Evenness, plotit = FALSE)
+alpha_bac$eventransform <- transformTukey(alpha_bac$Evenness, plotit = FALSE)
 
-e16slm <- lme(eventransform ~ RH * Day * Materials, random = ~1|CouponId, data = alpha, method = "ML", na.action = na.omit)
+e16slm <- lmer(eventransform ~ RH * Day * Materials +(1|CouponId), data = alpha_bac, REML = FALSE, na.action = na.omit)
 
 
 plot(e16slm)
@@ -881,15 +948,14 @@ qqnorm(resid(e16slm))
 qqline(resid(e16slm))
 hist(resid(e16slm))
 ```
-
 ```{r 16S Evenness ANOVA}
 options(contrasts = c("contr.sum", "contr.poly"))
-e16slm <- lme(eventransform ~ RH * Day * Materials, random = ~1|CouponId, data = alpha, method = "ML", na.action = na.omit)
+e16slm <- lmer(eventransform ~ RH * Day * Materials +(1|CouponId), data = alpha_bac, REML = FALSE, na.action = na.omit)
 Anova(e16slm, type = 3)
 options(contrasts = c("contr.treatment", "contr.poly"))
 ```
 ```{r Plot Evenness}
-even <- ggplot(alpha, aes(x=Day, y= eventransform, color = RH)) + 
+even <- ggplot(alpha_bac, aes(x=as.factor(Day), y= eventransform, color = RH)) + 
   geom_boxplot(linewidth = 1) + 
   labs(x = "Day", y = "Evenness", color = "Treatment") +
   scale_color_discrete(labels = c("Cycling", "Wet")) +
@@ -897,11 +963,8 @@ even <- ggplot(alpha, aes(x=Day, y= eventransform, color = RH)) +
   theme(title = element_text(size = 30, face = "bold"), axis.text = element_text(size = 18), legend.title = element_text(size = 25, face = "italic"), legend.text = element_text(size = 22), strip.text = element_text(size = 22))
 even
 ```
-
-
 ```{r Create linear model 16S Faiths PD}
-#needs work
-faithlm <- lme(faith_pd ~ RH * Day * Materials, random = ~1|CouponId, data = alpha, method = "ML", na.action = na.omit)
+faithlm <- lmer(faith_pd ~ RH * Day * Materials + (1|CouponId), data = alpha_bac, REML = FALSE, na.action = na.omit)
 
 
 plot(faithlm)
@@ -909,17 +972,69 @@ qqnorm(resid(faithlm))
 qqline(resid(faithlm))
 hist(resid(faithlm))
 ```
-
 ```{r 16S Faiths PD ANOVA}
-#needs work
 options(contrasts = c("contr.sum", "contr.poly"))
-faithlm <- lme(faith_pd ~ RH * Day * Materials, random = ~1|CouponId, data = alpha, method = "ML", na.action = na.omit)
+faithlm <- lmer(faith_pd ~ RH * Day * Materials + (1|CouponId), data = alpha_bac, REML = FALSE, na.action = na.omit)
 Anova(faithlm, type = 3)
 options(contrasts = c("contr.treatment", "contr.poly"))
 ```
-
-```{r}
-ggplot(alpha, aes(x=Day, y= faith_pd)) + 
+```{r 16S Faiths PD plot}
+ggplot(alpha_bac, aes(x=as.factor(Day), y= faith_pd, color = RH)) + 
   geom_boxplot() +
+  facet_wrap(~Materials) +
   theme_classic()
 ```
+```{r ITS Chao1 Linear Model}
+citslm <- lmer(log(Chao1_ITS) ~ RH * Day * Materials + (1|CouponId), data = alpha_fun, REML = FALSE, na.action = na.omit)
+
+plot(citslm)
+qqnorm(resid(citslm))
+qqline(resid(citslm))
+hist(resid(citslm))
+```
+```{r Run Chao1 ITS ANOVA}
+options(contrasts = c("contr.sum", "contr.poly"))
+citslm <- lmer(log(Chao1_ITS) ~ RH * Day * Materials + (1|CouponId), data = alpha_fun, REML = FALSE, na.action = na.omit)
+Anova(citslm, type = 3)
+options(contrasts = c("contr.treatment", "contr.poly"))
+```
+```{r ITS Shannon model}
+alpha_fun$shantransform <- transformTukey(alpha_fun$Shannon_ITS, plotit = FALSE)
+
+sitslm <- lmer(shantransform ~ RH * Day * Materials + (1|CouponId), data = alpha_fun, REML = FALSE, na.action = na.omit)
+
+plot(sitslm)
+qqnorm(resid(sitslm))
+qqline(resid(sitslm))
+hist(resid(sitslm))
+```
+```{r ITS Shannon ANOVA}
+options(contrasts = c("contr.sum", "contr.poly"))
+sitslm <- lmer(shantransform ~ RH * Day * Materials + (1|CouponId), data = alpha_fun, REML = FALSE, na.action = na.omit)
+Anova(sitslm, type = 3)
+options(contrasts = c("contr.treatment", "contr.poly"))
+```
+```{r ITS Evenness Linear Model}
+alpha_fun$eventransform <- transformTukey(alpha_fun$Evenness_ITS, plotit = FALSE)
+
+eitslm <- lmer(eventransform ~ RH * Day * Materials + (1|CouponId), data = alpha_fun, REML = FALSE, na.action = na.omit)
+
+plot(eitslm)
+qqnorm(resid(eitslm))
+qqline(resid(eitslm))
+hist(resid(eitslm))
+```
+```{r Run Evenness ITS ANOVA}
+options(contrasts = c("contr.sum", "contr.poly"))
+eitslm <- lmer(eventransform ~ RH * Day * Materials + (1|CouponId), data = alpha_fun, REML = FALSE, na.action = na.omit)
+Anova(eitslm, type = 3)
+options(contrasts = c("contr.treatment", "contr.poly"))
+```
+
+```{r ITS Evenness}
+ggplot(alpha_fun, aes(Day, y= eventransform, color = RH)) + 
+  geom_boxplot() +
+  facet_wrap(~Materials) +
+  theme_classic()
+```
+
