@@ -28,7 +28,7 @@ library(lme4)
 ```
 
 ```{r Load and fitler data}
-be_data <- read.csv("PCR_Couponbook2.csv", stringsAsFactors = T, na.strings = c("", "na", "NA"))
+be_data <- read.csv("metadata_and_counts.csv", stringsAsFactors = T, na.strings = c("", "na", "NA"))
 
 be_bac <- be_data %>%
   dplyr::select(1,2, 4, 5, 11, 12, 13) %>%
